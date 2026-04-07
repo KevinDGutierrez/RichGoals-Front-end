@@ -73,11 +73,21 @@ export async function getDocs(queryRef) {
   };
 }
 
-export function onSnapshot(docRef, onNext, onError) {
+/**
+ * Compatibilidad mínima con onSnapshot.
+ * IMPORTANTE:
+ * - Ya no hace polling agresivo cada 2s.
+ * - Solo hace una lectura inmediata y luego polling MUY relajado.
+ * - Si la pestaña está oculta, no consulta.
+ * - Si hay 401, se detiene.
+ */
+export function onSnapshot(docRef, onNext, onError, options = {}) {
   let stopped = false;
   let intervalId = null;
   let last = null;
   let pulling = false;
+
+  const pollMs = Number(options.pollMs || 30000);
 
   const stop = () => {
     stopped = true;
@@ -89,6 +99,7 @@ export function onSnapshot(docRef, onNext, onError) {
 
   const pull = async () => {
     if (stopped || pulling) return;
+    if (typeof document !== 'undefined' && document.hidden) return;
 
     pulling = true;
 
@@ -111,7 +122,6 @@ export function onSnapshot(docRef, onNext, onError) {
 
       const status = error?.response?.status;
 
-      // Si la sesión ya no es válida, detenemos el polling silenciosamente.
       if (status === 401) {
         stop();
         return;
@@ -129,7 +139,7 @@ export function onSnapshot(docRef, onNext, onError) {
     if (!stopped) {
       pull();
     }
-  }, 2000);
+  }, pollMs);
 
   return stop;
 }
