@@ -632,32 +632,6 @@ function App() {
                       </div>
                       <ArrowRight size={16} className="opacity-50" />
                     </button>
-
-                    <button
-                      onClick={async () => {
-                        if (confirm('🚨 ¡ALERTA! Esto borrará absolutamente todos tus datos registrados. Esta acción no se puede deshacer. ¿Estás seguro?')) {
-                          try {
-                            const collectionsToReset = ['incomes', 'expenses', 'debts', 'savings']
-                            for (const collName of collectionsToReset) {
-                              const q = query(collection(db, collName), where('userId', '==', user.uid))
-                              const snap = await getDocs(q)
-                              const deletePromises = snap.docs.map((d) => deleteDoc(doc(db, collName, d.id)))
-                              await Promise.all(deletePromises)
-                            }
-                            alert('Hard Reset Completo. Tu cuenta está limpia.')
-                            window.location.reload()
-                          } catch (err) {
-                            alert(`Error al resetear: ${err.message}`)
-                          }
-                        }
-                      }}
-                      className="w-full flex items-center justify-between p-4 bg-red-500/10 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition-all text-red-400 font-bold text-sm"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Trash2 size={18} />
-                        Hard Reset (Borrar Todo)
-                      </div>
-                    </button>
                   </div>
 
                   <div className="pt-6 border-t border-white/5 space-y-4 mt-6">
