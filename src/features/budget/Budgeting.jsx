@@ -216,7 +216,7 @@ const classifyToGroup = (itemName, itemGroup) => {
 const monthName = new Date().toLocaleString('es-GT', { month: 'long' });
 
 // ======================== COMPONENT ========================
-export default function Budgeting({ userData, user }) {
+export default function Budgeting({ userData, user, onDataChanged }) {
     const financesInfo = userData?.finances || {};
     const budget = userData?.budget || { categories: [] };
     const income = financesInfo.income || 0;
@@ -330,6 +330,7 @@ export default function Budgeting({ userData, user }) {
                 ...(selectedGroup ? { group: selectedGroup } : {}), color: 'bg-purple-500'
             };
             await updateDoc(userRef, { 'budget.categories': arrayUnion(newCategory) });
+            await onDataChanged?.();
             setNewCatName(''); setNewCatAmount(''); setIsUsd(false); setIsFixed(false); setSelectedGroup('');
             setIsModalOpen(false);
         } catch (error) {
@@ -343,6 +344,7 @@ export default function Budgeting({ userData, user }) {
         try {
             const userRef = doc(db, 'users', user.uid);
             await updateDoc(userRef, { 'budget.categories': arrayRemove(category) });
+            await onDataChanged?.();
         } catch (error) { console.error("Error deleting:", error); }
     };
 

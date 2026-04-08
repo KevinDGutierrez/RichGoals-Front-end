@@ -29,7 +29,7 @@ const currentMonthStr = () => {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 };
 
-export default function Income({ userData, user }) {
+export default function Income({ userData, user, onDataChanged }) {
     const finances = userData?.finances || {};
 
     // ═══════ DATA MIGRATION: single rawIncome → fixedIncomes[] ═══════
@@ -144,6 +144,7 @@ export default function Income({ userData, user }) {
             };
 
             await updateDoc(userRef, payload);
+            await onDataChanged?.();
         } catch (err) {
             console.error("Persist error:", err);
         } finally {

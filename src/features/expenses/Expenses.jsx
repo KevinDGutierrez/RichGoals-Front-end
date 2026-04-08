@@ -9,10 +9,10 @@ import {
     X, CheckCircle2, AlertTriangle, TrendingDown, Calendar,
     Receipt, Check, Undo2, Gamepad2, Wallet, ChevronUp, Scissors, Shirt, Ticket, Film, Beer, Flame, Watch, Pill, BusFront
 } from 'lucide-react';
-import { 
-    getSubCategory, 
-    calculateExpensesMetrics, 
-    calculateCashflowMetrics 
+import {
+    getSubCategory,
+    calculateExpensesMetrics,
+    calculateCashflowMetrics
 } from '../../lib/expenseLogic';
 import { trackEvent } from '../../lib/analytics';
 
@@ -41,8 +41,8 @@ const normalizeExpense = (exp) => {
     return {
         ...exp,
         category: superCat,
-        description: (!exp.description || exp.description === 'Otro' || exp.description === 'Otros' || exp.description === superCat) 
-            ? (exp.category || 'Otros') 
+        description: (!exp.description || exp.description === 'Otro' || exp.description === 'Otros' || exp.description === superCat)
+            ? (exp.category || 'Otros')
             : exp.description
     };
 };
@@ -126,7 +126,7 @@ const safeParse = (val) => {
 const isActuallyFixed = (e) => Boolean(e.isFixed);
 
 // ─────────────────────────── component ────────────────────────────
-export default function Expenses({ userData, user }) {
+export default function Expenses({ userData, user, onDataChanged }) {
     const finances = userData?.finances || {};
     const income = finances.income || 0;
     const budgetCats = userData?.budget?.categories || [];
@@ -148,7 +148,9 @@ export default function Expenses({ userData, user }) {
         // Persist if any names changed (one-time migration)
         const changed = userData.expenses.some((e, i) => e.category !== normalized[i].category);
         if (changed && user?.uid) {
-            updateDoc(doc(db, 'users', user.uid), { expenses: normalized }).catch(console.error);
+            updateDoc(doc(db, 'users', user.uid), { expenses: normalized })
+                .then(() => onDataChanged?.())
+                .catch(console.error);
         }
     }, [userData, user]);
 
@@ -229,7 +231,7 @@ export default function Expenses({ userData, user }) {
         });
 
         let gveVal = 0;
-        
+
         // Calculate GVE accurately using grouping logic
         const varGroupsLocal = variableBudgetCats.reduce((acc, cat) => {
             const superCat = getSubCategory(cat);
@@ -274,6 +276,7 @@ export default function Expenses({ userData, user }) {
         setLoading(true);
         try {
             await updateDoc(doc(db, 'users', user.uid), { expenses: newList });
+            await onDataChanged?.();
         } catch (err) {
             console.error('Error saving expense:', err);
         } finally {
@@ -373,6 +376,7 @@ export default function Expenses({ userData, user }) {
                         return acc;
                     });
                     await updateDoc(userRef, { 'savings.accounts': updatedAccounts });
+                    await onDataChanged?.();
                 }
             }
 
@@ -488,6 +492,7 @@ export default function Expenses({ userData, user }) {
                     return acc;
                 });
                 await updateDoc(userRef, { 'savings.accounts': updatedAccounts });
+                await onDataChanged?.();
             }
         }
 
@@ -574,6 +579,7 @@ export default function Expenses({ userData, user }) {
                     return acc;
                 });
                 await updateDoc(userRef, { 'savings.accounts': updatedAccounts });
+                await onDataChanged?.();
             }
         }
 

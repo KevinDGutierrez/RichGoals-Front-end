@@ -81,7 +81,7 @@ const ConceptIcon = ({ title, size = 20 }) => {
     return <Icon size={size} />;
 };
 
-export default function DebtControl({ userData, user }) {
+export default function DebtControl({ userData, user, onDataChanged }) {
     const [entities, setEntities] = useState(userData?.debts || []);
     const [isAdding, setIsAdding] = useState(false);
     const [activatingDebt, setActivatingDebt] = useState(null);
@@ -132,6 +132,7 @@ export default function DebtControl({ userData, user }) {
                 'finances.totalDebt': totalDebtBalance,
                 'finances.monthlyDebtPayment': totalMonthlyPayment
             });
+            await onDataChanged?.();
         } catch (error) {
             console.error("Error persisting debts:", error);
             alert("Error al guardar en la base de datos.");
@@ -333,6 +334,7 @@ export default function DebtControl({ userData, user }) {
             updatedEntities.forEach(e => e.debts.forEach(d => { totalDebt += d.amount; }));
             updates['finances.totalDebt'] = totalDebt;
             await updateDoc(userRef, updates);
+            await onDataChanged?.();
         } catch (err) {
             console.error('Error saving payment:', err);
             alert('Error al guardar el pago.');

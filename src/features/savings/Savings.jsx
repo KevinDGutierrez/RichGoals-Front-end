@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import RichInsightsCard from '../insights/RichInsightsCard';
 
-export default function Savings({ userData, user }) {
+export default function Savings({ userData, user, onDataChanged }) {
     const finances = userData?.finances || {};
     const savings = userData?.savings || { accounts: [] };
     const incomeAmount = finances.income || 0;
@@ -115,6 +115,7 @@ export default function Savings({ userData, user }) {
 
             const updatedAccounts = [...accounts, newAccountObj];
             await updateDoc(userRef, { 'savings.accounts': updatedAccounts });
+            await onDataChanged?.();
 
             setIsAddAccountModalOpen(false);
             setNewAccName('');
@@ -155,6 +156,7 @@ export default function Savings({ userData, user }) {
             });
 
             await updateDoc(userRef, { 'savings.accounts': updatedAccounts });
+            await onDataChanged?.();
             trackEvent('funds_added', { amount: amountToAdd, source: fundSource, account: selectedAccount.name });
 
             // Reset states
@@ -199,6 +201,7 @@ export default function Savings({ userData, user }) {
             });
 
             await updateDoc(userRef, { 'savings.accounts': updatedAccounts });
+            await onDataChanged?.();
             trackEvent('funds_withdrawn', { amount: amountToSub, reason: withdrawReason, account: selectedAccount.name });
             setIsWithdrawModalOpen(false);
             setWithdrawAmount('');
@@ -274,6 +277,7 @@ export default function Savings({ userData, user }) {
                 'finances.income': totalNetIncome,
                 'finances.updatedAt': new Date().toISOString()
             });
+            await onDataChanged?.();
             trackEvent('transfer_to_income', { amount: amt, currency: selectedAccount.currency, account: selectedAccount.name });
 
             setIsTransferModalOpen(false);
@@ -295,6 +299,7 @@ export default function Savings({ userData, user }) {
             const userRef = doc(db, 'users', user.uid);
             const updatedAccounts = accounts.filter(acc => acc.id !== selectedAccount.id);
             await updateDoc(userRef, { 'savings.accounts': updatedAccounts });
+            await onDataChanged?.();
             setSelectedAccount(null);
             setIsDeleteModalOpen(false);
             setDeleteConfirmStep(1);

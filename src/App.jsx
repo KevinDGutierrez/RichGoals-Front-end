@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   LayoutDashboard,
   Wallet,
@@ -25,7 +25,6 @@ import { auth, db } from './firebase'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import {
   doc,
-  onSnapshot,
   deleteDoc,
   collection,
   getDocs,
@@ -33,6 +32,7 @@ import {
   where,
   updateDoc,
   setDoc,
+  getDoc,
 } from './services/backendFirestore.js'
 import Dashboard from './features/dashboard/Dashboard'
 import Budgeting from './features/budget/Budgeting'
@@ -99,8 +99,8 @@ function App() {
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
-  const unsubscribeSnapRef = useRef(() => { })
   const logoutInProgressRef = useRef(false)
+  const refreshInFlightRef = useRef(false)
 
   const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase())
   const isStandalone = 'standalone' in window.navigator && window.navigator.standalone
@@ -115,13 +115,64 @@ function App() {
     return undefined
   }, [user])
 
-  useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-      if (unsubscribeSnapRef.current) {
-        unsubscribeSnapRef.current()
-        unsubscribeSnapRef.current = () => { }
+  const refreshUserData = useCallback(async (targetUser = user, options = {}) => {
+    if (!targetUser?.uid) return
+
+    const { silent = true } = options
+
+    if (refreshInFlightRef.current) {
+      if (!silent) {
+        setUserDocReady(true)
+        setLoading(false)
+      }
+      return
+    }
+
+    refreshInFlightRef.current = true
+
+    try {
+      if (!silent) {
+        setLoading(true)
+        setUserDocReady(false)
       }
 
+      const userRef = doc(db, 'users', targetUser.uid)
+      const docSnap = await getDoc(userRef)
+
+      if (docSnap.exists()) {
+        setUserData(docSnap.data())
+      } else {
+        const newUserData = {
+          name: targetUser.displayName || 'Usuario',
+          email: targetUser.email,
+          photoURL: targetUser.photoURL,
+          createdAt: new Date().toISOString(),
+        }
+
+        await setDoc(userRef, newUserData)
+        setUserData(newUserData)
+      }
+
+      if (!userDocReady) {
+        setUserDocReady(true)
+      }
+    } catch (err) {
+      console.error('Error refreshing user document:', err)
+
+      if (!silent) {
+        alert('Error conectando con la base de datos.')
+      }
+    } finally {
+      refreshInFlightRef.current = false
+
+      if (!silent) {
+        setLoading(false)
+      }
+    }
+  }, [user, userDocReady])
+
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser)
 
       if (currentUser) {
@@ -129,47 +180,7 @@ function App() {
         setLoading(true)
         setUserDocReady(false)
         startSession(currentUser.uid)
-
-        unsubscribeSnapRef.current = onSnapshot(
-          doc(db, 'users', currentUser.uid),
-          async (docSnap) => {
-            try {
-              if (docSnap.exists()) {
-                setUserData(docSnap.data())
-              } else {
-                const newUserRef = doc(db, 'users', currentUser.uid)
-                const newUserData = {
-                  name: currentUser.displayName || 'Usuario',
-                  email: currentUser.email,
-                  photoURL: currentUser.photoURL,
-                  createdAt: new Date().toISOString(),
-                }
-
-                await setDoc(newUserRef, newUserData)
-                setUserData(newUserData)
-              }
-            } catch (err) {
-              console.error('Error handling user document:', err)
-            } finally {
-              setUserDocReady(true)
-              setLoading(false)
-            }
-          },
-          (error) => {
-            console.error('Firestore onSnapshot Error:', error)
-
-            if (error?.response?.status === 401) {
-              setUserData(null)
-              setUserDocReady(true)
-              setLoading(false)
-              return
-            }
-
-            setUserDocReady(true)
-            setLoading(false)
-            alert('Error conectando con la base de datos.')
-          }
-        )
+        await refreshUserData(currentUser, { silent: false })
       } else {
         setUserData(null)
         setUserDocReady(true)
@@ -189,11 +200,8 @@ function App() {
 
     return () => {
       unsubscribeAuth()
-      if (unsubscribeSnapRef.current) {
-        unsubscribeSnapRef.current()
-      }
     }
-  }, [])
+  }, [refreshUserData])
 
   const prevTab = useRef(activeTab)
   useEffect(() => {
@@ -231,6 +239,7 @@ function App() {
 
       try {
         await updateDoc(userRef, payload)
+        await refreshUserData(user, { silent: true })
         console.log('Migration 2.0 complete: version stamped and age initialized.')
       } catch (err) {
         console.error('Migration 2.0 failed', err)
@@ -239,7 +248,7 @@ function App() {
     }
 
     runMigration20()
-  }, [user, userData])
+  }, [user, userData, refreshUserData])
 
   const handleLogout = async () => {
     try {
@@ -247,11 +256,6 @@ function App() {
       setLoading(true)
       setIsSettingsOpen(false)
       setIsUpdateModalOpen(false)
-
-      if (unsubscribeSnapRef.current) {
-        unsubscribeSnapRef.current()
-        unsubscribeSnapRef.current = () => { }
-      }
 
       try {
         await endSession()
@@ -308,15 +312,15 @@ function App() {
       case 'dashboard':
         return <Dashboard userData={userData} />
       case 'income':
-        return <Income userData={userData} user={user} />
+        return <Income userData={userData} user={user} onDataChanged={refreshUserData} />
       case 'budget':
-        return <Budgeting userData={userData} user={user} />
+        return <Budgeting userData={userData} user={user} onDataChanged={refreshUserData} />
       case 'debt':
-        return <DebtControl userData={userData} user={user} />
+        return <DebtControl userData={userData} user={user} onDataChanged={refreshUserData} />
       case 'savings':
-        return <Savings userData={userData} user={user} />
+        return <Savings userData={userData} user={user} onDataChanged={refreshUserData} />
       case 'expenses':
-        return <Expenses userData={userData} user={user} />
+        return <Expenses userData={userData} user={user} onDataChanged={refreshUserData} />
       default:
         return <Dashboard userData={userData} />
     }
@@ -696,7 +700,7 @@ function App() {
                 <div className="pt-4 border-t border-white/5 flex flex-col items-center">
                   <RichGoalsLogo size={32} className="opacity-50 mb-2" />
                   <p className="text-[10px] font-bold text-aura-muted uppercase tracking-[0.3em]">
-                    V2.0 · Build 2026.03.11
+                    V2.0 · Build 11/03/2026
                   </p>
                 </div>
               </div>
