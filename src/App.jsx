@@ -215,6 +215,7 @@ function App() {
   useEffect(() => {
     const runMigration20 = async () => {
       if (!user || !userData) return
+      if (!userData?.setupComplete || !userData?.finances) return
       if (userData.appVersion === '2.0' || migration20Ran.current) return
 
       migration20Ran.current = true
@@ -229,7 +230,6 @@ function App() {
         migrationDone: '2.0',
         appVersion: '2.0',
         age: userData.age || 25,
-        setupComplete: true,
       }
 
       if (!userData.nickname) {
