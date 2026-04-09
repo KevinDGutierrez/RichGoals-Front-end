@@ -2,7 +2,7 @@ import axios from 'axios';
 import { auth } from '../firebase';
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  baseURL: import.meta.env.VITE_API_URL,
 });
 
 apiClient.interceptors.request.use(async (config) => {

@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "richetsgoal-finanzas-gtq"
+  },
   "targets": {},
   "etags": {}
 }
