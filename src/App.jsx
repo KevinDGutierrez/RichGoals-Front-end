@@ -299,7 +299,17 @@ function App() {
     return renderLoading('Cargando tu perfil...')
   }
 
-  if (user && userDocReady && !userData?.setupComplete && !userData?.finances) {
+  if (user && userDocReady && !userData) {
+    return renderLoading('Cargando tu perfil...')
+  }
+
+  if (
+    user &&
+    userDocReady &&
+    userData &&
+    !userData.setupComplete &&
+    !userData.finances
+  ) {
     return (
       <div key={`onboarding-${user.uid}`}>
         <Onboarding user={user} onComplete={() => window.location.reload()} />
